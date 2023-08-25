@@ -27,11 +27,21 @@ func initRoutes(){
 }
 
 func initApp(mongoClient *mongo.Client){
+	
+	//customer collection
 	ctx = context.TODO()
-	profileCollection := mongoClient.Database(constants.Dbname).Collection("customer")
-	profileService := service.InitCustomer(profileCollection, ctx)
-	profileController := controllers.InitTransController(profileService)
-	routes.CustRoute(server,profileController)
+	CustomerCollection := mongoClient.Database(constants.Dbname).Collection("customer")
+	CustomerService := service.CustomerServiceInit(CustomerCollection, ctx)
+	CustomerController := controllers.InitCustomerController(CustomerService)
+	routes.CustomerRoute(server,CustomerController)
+
+
+	//transaction collection
+	ctx = context.TODO()
+	TransactionCollection := mongoClient.Database(constants.Dbname).Collection("transaction")
+	TransactionService := service.TransactionServiceInit(mongoClient,CustomerCollection,TransactionCollection , ctx)
+	TransactionController := controllers.InitTransactionController(TransactionService)
+	routes.Transactionroutes(server,TransactionController)
 }
 
 func initAcc(mongoClient *mongo.Client){

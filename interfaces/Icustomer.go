@@ -2,17 +2,19 @@ package interfaces
 
 import (
 	"BANKAPP/models"
-	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson"
+	//"time"
+	//"go.mongodb.org/mongo-driver/mongo"
 )
 
-type Icustomer interface {
-	CreateCustomer(*models.Customer) (*mongo.InsertOneResult, error)
-	GetCustomerById(int64) (*models.Customer, error)
-	UpdateCustomerById(int64, *models.UpdateModel) (*mongo.UpdateResult, error)
-	DeleteCustomerById(int64) (*mongo.DeleteResult, error)
-	GetAllCustomerTransaction(int64) (*[]models.CustTransaction, error)
-	GetAllCustomerTransactionByDate(int64, time.Time, time.Time) ([]models.CustTransaction, error)
-	CreateTransaction(*models.CustTransaction) (*mongo.InsertOneResult, error)
+
+
+type ICustomer interface{
+	CreateCustomer(customer *models.Customer)(error)
+	DeleteService(filter bson.M)(error)
+	UpdateService(filter bson.M,update bson.M)(error)
+	FindService(filter bson.M)([] models.Customer,error)
+	// FindServiceSum(filter mongo.Pipeline) (float64, error)
+	
 }

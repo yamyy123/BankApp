@@ -6,13 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CustRoute(router *gin.Engine, controller controllers.TransactionController) {
-	router.POST("/customer", controller.CreateCustomer)
-	router.GET("/customer/:id", controller.GetCustomerById)
-	router.PUT("/customer/:id", controller.UpdateCustomerById)
-	router.DELETE("/customer/:id", controller.DeleteCustomerById)
-	router.GET("/customertrans/:id", controller.GetAllCustomerTransaction)
-	router.POST("/customertrans/:id/:start_date/:end_date", controller.GetAllCustomerTransactionByDate)
-	router.POST("/customertrans", controller.CreateTransaction)
-
+func CustomerRoute(router *gin.Engine, controller controllers.CustomerController) {
+	router.POST("/api/customer/create", controller.CreateCustomer)
+	router.DELETE("/api/customer/delete/:id", controller.DeleteCustomer)
+	router.PUT("/api/customer/update/:id",controller.UpdateCustomer)
+	router.POST("/api/customer/find",controller.FindCustomer)
+	
+	// router.POST("/api/customer/find/sum",controller.FindSumCustomer)
 }

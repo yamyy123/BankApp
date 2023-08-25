@@ -1,143 +1,242 @@
 package controllers
 
 import (
+	"net/http"
+	"strings"
+	"fmt"
+	"time"
+	
 	"BANKAPP/interfaces"
 	"BANKAPP/models"
-	"fmt"
-	"net/http"
 	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-type TransactionController struct {
-	TransactionService interfaces.Icustomer
+type CustomerController struct {
+	CustomerService interfaces.ICustomer
 }
 
-func InitTransController(transactionService interfaces.Icustomer) TransactionController {
-	return TransactionController{transactionService}
+func InitCustomerController(CustomerService interfaces.ICustomer) CustomerController {
+	return CustomerController{CustomerService} //DI(dependency injection) pattern
 }
 
-func (t *TransactionController) CreateCustomer(ctx *gin.Context) {
-	var trans *models.Customer
-	if err := ctx.ShouldBindJSON(&trans); err != nil {
+func  (pc *CustomerController) CreateCustomer(ctx *gin.Context) {
+	var customer *models.Customer
+	if err := ctx.ShouldBindJSON(&customer); err != nil {
 		ctx.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
-	newtrans, err := t.TransactionService.CreateCustomer(trans)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
+	
+	err := pc.CustomerService.CreateCustomer(customer)
 
-	}
-	ctx.JSON(http.StatusCreated, gin.H{"status": "success", "data": newtrans})
+	if err != nil {
+		if strings.Contains(err.Error(), "title already exists") {
+			ctx.JSON(http.StatusConflict, gin.H{"status": "fail", "message": err.Error()})
+			return
+		}
 
-}
-
-func (t *TransactionController) GetCustomerById(ctx *gin.Context) {
-	id := ctx.Param("id")
-	id1, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	val, err := t.TransactionService.GetCustomerById(id1)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-
-	}
-	ctx.JSON(http.StatusCreated, gin.H{"status": "success", "data": val})
-}
-
-func (t *TransactionController) UpdateCustomerById(ctx *gin.Context) {
-	id := ctx.Param("id")
-	fv := &models.UpdateModel{}
-	if err := ctx.ShouldBindJSON(&fv); err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
-		return
-	}
-	fmt.Println(fv)
-	id1, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	res, err := t.TransactionService.UpdateCustomerById(id1, fv)
-	if err != nil {
-		fmt.Println("error")
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	ctx.JSON(http.StatusCreated, gin.H{"status": "success", "data": res})
-}
-
-func (t *TransactionController) DeleteCustomerById(ctx *gin.Context) {
-	id := ctx.Param("id")
-	id1, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	res, err := t.TransactionService.DeleteCustomerById(id1)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	ctx.JSON(http.StatusCreated, gin.H{"status": "success", "data": res})
-}
-
-func (t *TransactionController) GetAllCustomerTransaction(ctx *gin.Context) {
-	id := ctx.Param("id")
-	id1, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	res, err := t.TransactionService.GetAllCustomerTransaction(id1)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
-	}
-	ctx.JSON(http.StatusCreated, gin.H{"status": "success", "data": res})
-}
-
-func (t *TransactionController) GetAllCustomerTransactionByDate(ctx *gin.Context) {
-	customerIDString := ctx.Param("id") // Extract customer ID from URL parameter
-
-	// Parse the customer ID from string to int64
-	customerID, err := strconv.ParseInt(customerIDString, 10, 64)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID format"})
 		return
 	}
 
-	// Parse the start date string into a time.Time object
-	startDateString := ctx.Param("date") // Extract start date string from URL parameter
-	startDate, err := time.Parse(time.RFC3339, startDateString)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date format"})
-		return
-	}
-
-	// Get customer transactions from start date to the present date
-	endDate := time.Now() // Assuming you want transactions up to the current date
-
-	// Call the method to fetch transactions based on customer ID and date range
-	transactions, err := t.TransactionService.GetAllCustomerTransactionByDate(customerID, startDate, endDate)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch transactions"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, transactions)
+	
 }
 
-func (t *TransactionController) CreateTransaction(ctx *gin.Context) {
-	var transaction models.CustTransaction
-
-	if err := ctx.ShouldBindJSON(&transaction); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+func (pc* CustomerController) DeleteCustomer(ctx *gin.Context){
+       
+	   value := ctx.Param("id")
+	   
+	   fmt.Println("value before coverting",value)
+       ids, errs := strconv.Atoi(value)
+	   if errs != nil {
+		fmt.Println("ID Number is ",ids)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
 		return
 	}
 
-	result, err := t.TransactionService.CreateTransaction(&transaction)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create transaction"})
+	   filter:=bson.M{"customer_id":ids}
+	   err:=pc.CustomerService.DeleteService(filter)
+       if err != nil {
+		if strings.Contains(err.Error(), "title already exists") {
+			ctx.JSON(http.StatusConflict, gin.H{"status": "fail", "message": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, result)
 }
+
+func (pc* CustomerController) UpdateCustomer(ctx*gin.Context){
+	value := ctx.Param("id")
+	   
+	fmt.Println("value before coverting",value)
+	ids, errs := strconv.Atoi(value)
+	if errs != nil {
+	 fmt.Println("ID Number is ",ids)
+	 ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
+	 return
+   }
+   filter:=bson.M{"customer_id":ids}
+   update:=bson.M{"$set":bson.M{"customer_name":"warner"}}
+   err:=pc.CustomerService.UpdateService(filter,update)
+   if err != nil {
+	if strings.Contains(err.Error(), "title already exists") {
+		ctx.JSON(http.StatusConflict, gin.H{"status": "fail", "message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail", "message": err.Error()})
+	return
+}
+
+}
+
+func (pc* CustomerController)FindCustomer(ctx*gin.Context){
+	
+    // startDate := time.Date(2021, time.August, 1, 0, 0, 0, 0, time.UTC) // Replace with the start date
+    // endDate := time.Date(2024, time.August, 31, 23, 59, 59, 999999999, time.UTC) // Replace with the end date
+
+    // Construct the query filter
+	// startDate := ctx.Query("start_date")
+	// endDate := ctx.Query("end_date")
+    // custid:=ctx.Query("customer_id")
+	type requestForm struct {
+        Startdate string `json:"startdate" bson:"startdate"`
+        Enddate string    `json:"enddate" bson:"enddate"`
+		Custid int `json:"custid" bson:"custid"`
+    }
+	var requestData requestForm
+	if err := ctx.ShouldBindJSON(&requestData); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+	s1:=requestData.Startdate
+	e1:=requestData.Enddate
+   
+	 idd:=requestData.Custid
+
+	start, err := time.Parse("2006-01-02", s1)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date"})
+		return
+	}
+
+	end, err := time.Parse("2006-01-02", e1)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end date"})
+		return
+	}
+
+    filter := bson.M{
+        "customer_id":idd,
+        "transaction.transaction_date": bson.M{
+            "$gte": start,
+            "$lte": end,
+        },
+    }
+
+	results,err1:=pc.CustomerService.FindService(filter)
+	if err1 != nil {
+		ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail"})
+		return
+	}		
+	for ind,val:=range results{
+		ctx.JSON(http.StatusOK, gin.H{"index":ind,"value":val})
+		fmt.Println(ind,val)
+	   
+	}
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// func (pc* CustomerController)FindSumCustomer(ctx*gin.Context){
+	
+// 	type requestForm struct {
+//         Startdate string `json:"startdate" bson:"startdate"`
+//         Enddate string    `json:"enddate" bson:"enddate"`
+// 		Custid int `json:"custid" bson:"custid"`
+//     }
+// 	var requestData requestForm
+// 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
+//         ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+//         return
+//     }
+// 	s1:=requestData.Startdate
+// 	e1:=requestData.Enddate
+   
+// 	 idd:=requestData.Custid
+
+// 	start, err := time.Parse("2006-01-02", s1)
+// 	if err != nil {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date"})
+// 		return
+// 	}
+
+// 	end, err := time.Parse("2006-01-02", e1)
+// 	if err != nil {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end date"})
+// 		return
+// 	}
+
+// 	pipeline := mongo.Pipeline{
+// 		{
+// 			Key: "$match",
+// 			Value: bson.M{
+// 				"customer_id": idd,
+// 				"transaction.transaction_date": bson.M{
+// 					"$gte": start,
+// 					"$lte": end,
+// 				},
+// 			},
+// 		},
+// 		{
+// 			Key: "$group",
+// 			Value: bson.D{
+// 				{Key: "_id", Value: nil},
+// 				{Key: "totalAmount", Value: bson.M{"$sum": "$transaction.transaction_amount"}},
+// 			},
+// 		},
+// 	}
+// 	totalAmount, err1 := pc.CustomerService.FindServiceSum(pipeline)
+// if err1 != nil {
+//     ctx.JSON(http.StatusBadGateway, gin.H{"status": "fail"})
+//     return
+// }
+
+// ctx.JSON(http.StatusOK, gin.H{"sum of transaction amount": totalAmount})
+// }

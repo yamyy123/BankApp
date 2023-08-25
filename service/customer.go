@@ -1,141 +1,108 @@
 package service
 
 import (
+	"context"
+	
+	"fmt"
+	"log"
 	"BANKAPP/interfaces"
 	"BANKAPP/models"
-	"context"
-	"log"
-	"reflect"
-	"time"
-
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"golang.org/x/crypto/bcrypt"
+	"go.mongodb.org/mongo-driver/bson"
+	
 )
 
-type Cust struct {
-	ctx             context.Context
-	mongoCollection *mongo.Collection
+type CustomerService struct {
+	CustomerCollection *mongo.Collection
+	ctx               context.Context
 }
 
-// GetAllCustomerTransactionByDate implements interfaces.Icustomer.
-func (*Cust) GetAllCustomerTransactionByDate(int64, time.Time, time.Time) ([]models.CustTransaction, error) {
-	panic("unimplemented")
+func CustomerServiceInit(collection *mongo.Collection, ctx context.Context) interfaces.ICustomer {
+	return &CustomerService{ collection , ctx}
 }
 
-func InitCustomer(collection *mongo.Collection, ctx context.Context) interfaces.Icustomer {
-	return &Cust{ctx, collection}
-}
+func (p *CustomerService) CreateCustomer(user *models.Customer) (error) {
+	 
+	_, err := p.CustomerCollection.InsertOne(p.ctx, &user)
 
-func (c *Cust) CreateCustomer(user *models.Customer) (*mongo.InsertOneResult, error) {
-	indexModel := []mongo.IndexModel{
-		{
-			Keys:    bson.D{{Key: "account_id", Value: 1}, {Key: "customer_id", Value: 1}}, // 1 for ascending, -1 for descending
-			Options: options.Index().SetUnique(true),
-		},
-	}
-	_, err := c.mongoCollection.Indexes().CreateMany(c.ctx, indexModel)
 	if err != nil {
-		return nil, err
+		return   err
 	}
-	user.Transaction[0].Date = time.Now()
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 7)
-	user.Password = string(hashedPassword)
-	res, err := c.mongoCollection.InsertOne(c.ctx, &user)
+	return nil
+
+}
+
+func (p*CustomerService) DeleteService(filter bson.M)(error){
+       _,err:=p.CustomerCollection.DeleteOne(p.ctx,filter)
+	   if err != nil {
+		return   err
+	}
+	fmt.Println("DELETED SUCCESSFULLY")
+	return nil
+}
+
+func (p*CustomerService) UpdateService(filter bson.M,update bson.M)(error){
+	_,err:=p.CustomerCollection.UpdateOne(p.ctx,filter,update)
 	if err != nil {
-		if mongo.IsDuplicateKeyError(err) {
-			log.Fatal("Duplicate key error")
+	 return   err
+ }
+ fmt.Println("DELETED SUCCESSFULLY")
+ return nil
+}
+
+func (p* CustomerService) FindService(filter bson.M)([] models.Customer,error){
+	cursor,err:=p.CustomerCollection.Find(p.ctx,filter)
+	fmt.Println(cursor)
+	var results[] models.Customer
+	for cursor.Next(context.TODO()) {
+		var result models.Customer // Replace YourStruct with the type of documents in your collection
+		if err := cursor.Decode(&result); err != nil {
+			log.Fatal(err)
 		}
-		return nil, err
+		results = append(results, result)
 	}
-
-	return res, nil
-}
-
-func (c *Cust) GetCustomerById(id int64) (*models.Customer, error) {
-	filter := bson.D{{Key: "customer_id", Value: id}}
-	var customer *models.Customer
-	res := c.mongoCollection.FindOne(c.ctx, filter)
-	err := res.Decode(&customer)
 	if err != nil {
-		return nil, err
-	}
-	return customer, nil
+	 return   nil,err
+   }
+
+   fmt.Println("FINDED SUCCESSFULLY")
+   return results,nil
 }
 
-func (c *Cust) UpdateCustomerById(id int64, n *models.UpdateModel) (*mongo.UpdateResult, error) {
-	iv := bson.M{"customer_id": id}
-	if n.Topic == "password" {
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(string(n.FinalValue.(string))), 8)
-		n.FinalValue = string(hashedPassword)
-	}
-	if reflect.TypeOf(n.FinalValue).String() == "float64" {
-		n.FinalValue = int64(n.FinalValue.(float64))
-	}
-	fv := bson.M{"$set": bson.M{n.Topic: n.FinalValue}}
-	res, err := c.mongoCollection.UpdateOne(c.ctx, iv, fv)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
 
-func (c *Cust) DeleteCustomerById(id int64) (*mongo.DeleteResult, error) {
-	del := bson.M{"customer_id": id}
-	res, err := c.mongoCollection.DeleteOne(c.ctx, del)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
 
-func (c *Cust) GetAllCustomerTransaction(id int64) (*[]models.CustTransaction, error) {
-	filter := bson.D{{Key: "customer_id", Value: id}}
-	var customer *models.Customer
-	res := c.mongoCollection.FindOne(c.ctx, filter)
-	err := res.Decode(&customer)
-	if err != nil {
-		return nil, err
-	}
-	return &customer.Transaction, nil
-}
 
-func (c *Cust) GetCustomerTransactionsByDate(customerID int64, startDate, endDate time.Time) (*[]models.CustTransaction, error) {
-	filter := bson.M{
-		"customer_id": customerID,
-		"date": bson.M{
-			"$gte": startDate,
-			"$lte": endDate,
-		},
-	}
 
-	cursor, err := c.mongoCollection.Find(c.ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(c.ctx)
 
-	var transactions []models.CustTransaction
-	for cursor.Next(c.ctx) {
-		var transaction models.CustTransaction
-		if err := cursor.Decode(&transaction); err != nil {
-			return nil, err
-		}
-		transactions = append(transactions, transaction)
-	}
 
-	if err := cursor.Err(); err != nil {
-		return nil, err
-	}
 
-	return &transactions, nil
-}
 
-func (c *Cust) CreateTransaction(transaction *models.CustTransaction) (*mongo.InsertOneResult, error) {
-	result, err := c.mongoCollection.InsertOne(c.ctx, transaction)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
+
+
+
+
+
+
+
+
+// func (p *CustomerService) FindServiceSum(filter mongo.Pipeline) (float64, error) {
+//     cursor, err := p.CustomerCollection.Aggregate(p.ctx, filter)
+//     if err != nil {
+//         return 0, err
+//     }
+
+//     var result struct {
+//         TotalAmount float64 `bson:"totalAmount"`
+//     }
+
+//     if cursor.Next(p.ctx) {
+//         if err := cursor.Decode(&result); err != nil {
+//             return 0, err
+//         }
+//     } else {
+//         // No results found
+//         return 0, nil
+//     }
+
+//     return result.TotalAmount, nil
+// }

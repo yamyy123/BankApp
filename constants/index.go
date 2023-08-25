@@ -1,6 +1,6 @@
 package constants
 
-const ConnectionString="mongodb+srv://sineka:aadhya@cluster0.kjyfryd.mongodb.net/?retryWrites=true&w=majority"
+const ConnectionString="mongodb://localhost:27017/?retryWrites=true&connectTimeoutMS=10000"
 
 const Dbname = "banking"
 
